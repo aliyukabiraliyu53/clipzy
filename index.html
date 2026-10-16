@@ -1,57 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CLIPZY - Duniya</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CLIPZY FINAL</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-body{font-family:sans-serif;background:#000;color:#fff;text-align:center;margin:0}
-header{padding:15px;background:#111}
-video{width:100%;max-width:400px;border-radius:15px;margin:10px 0}
-.btn{background:#ff0050;color:#fff;padding:12px 25px;border:none;border-radius:25px;font-weight:bold}
+*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#fff;font-family:sans-serif;overflow:hidden}
+#feed{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory}
+.clip{height:100vh;width:100vw;scroll-snap-align:start;position:relative;background:#111;display:flex;align-items:center;justify-content:center}
+.clip video{width:100%;height:100%;object-fit:cover}
+#top-bar{position:fixed;top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:20}
+#counter{background:#8a2be2;padding:5px 12px;border-radius:20px;font-size:12px}
+.side-ui{position:fixed;right:12px;bottom:120px;display:flex;flex-direction:column;gap:18px;z-index:20}
+.side-ui button{background:rgba(255,255,255,0.2);border:none;width:52px;height:52px;border-radius:50%;font-size:24px}
 </style>
 </head>
 <body>
-<header><h2>CLIPZY 🌍</h2><p>3 Kyauta, na 4 N200 | Low Data Mode</p></header>
-<div id="app">
-<video id="player" controls autoplay loop></video>
-<div>
-<button class="btn" onclick="nextVideo()">Next Clip ⏭️</button>
-<button class="btn" style="background:#222" onclick="document.getElementById('file').click()">Upload 📤</button>
-<input type="file" id="file" hidden accept="video/*" onchange="uploadVideo(event)">
-</div>
-<p id="count">Free: 3/3 remaining</p>
-<p id="status"></p>
-</div>
+<div id="top-bar"><div><b>CLIPZY</b></div><div id="counter">Free: 3/3</div></div>
+<div id="feed"></div>
+<div class="side-ui"><button onclick="handlePostClick()">📤</button><button>❤️</button></div>
 <script>
-let freeCount = 3;
-const videos = [];
-function nextVideo(){
- if(freeCount<=0){
-   document.getElementById('status').innerHTML="Free ya kare! Biya N200 don ci gaba - <button class='btn' onclick='pay()'>Biya N200</button>";
-   return;
- }
- freeCount--;
- document.getElementById('count').innerText=`Free: ${freeCount}/3 remaining`;
- if(videos.length>0){
-  const v=videos[Math.floor(Math.random()*videos.length)];
-  document.getElementById('player').src=v;
- }
-}
-function uploadVideo(e){
- const file=e.target.files[0];
- if(file){
-  const url=URL.createObjectURL(file);
-  videos.push(url);
-  document.getElementById('player').src=url;
-  document.getElementById('status').innerText="Clip uploaded! 🎉";
- }
-}
-function pay(){
- window.open('https://paystack.com/pay/clipzy200','_blank');
- freeCount=3;
- document.getElementById('count').innerText=`Free: ${freeCount}/3 remaining`;
- document.getElementById('status').innerText="Biya ya yi! Ci gaba.";
-}
+const SUPABASE_URL="https://gukuzlvwqaripnufvmlt.supabase.co";
+const SUPABASE_KEY="sb_publishable_x2ndSpPkpMsb3ajyBYBVrw_2y8K-84l";
+const BUCKET="Videos";
+const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+function getPostData(){const t=new Date().toDateString();let d=JSON.parse(localStorage.getItem('clipzy_final'));if(!d||d.date!==t){d={date:t,count:0};localStorage.setItem('clipzy_final',JSON.stringify(d))}return d;}
+function updateCounter(){const d=getPostData();const r=3-d.count;document.getElementById('counter').innerText=r>0?`Free: ${r}/3`:`Free: 0/3 - N200`;}
+async function handlePostClick(){let data=getPostData();if(data.count>=3){if(!confirm('Ka cika 3 kyauta. Na 4 sai N200. Ka yarda?'))return;}const input=document.createElement('input');input.type='file';input.accept='video/*';input.onchange=async(e)=>{const file=e.target.files[0];if(!file)return;alert('Ana loda...');const fileName=Date.now()+'_'+file.name;const {error}=await supabaseClient.storage.from(BUCKET).upload(fileName,file);if(error){alert('Error: '+error.message);return;}data.count++;data.date=new Date().toDateString();localStorage.setItem('clipzy_final',JSON.stringify(data));updateCounter();alert('✅ An saka!');loadFeed();};input.click();}
+async function loadFeed(){const feed=document.getElementById('feed');const {data}=await supabaseClient.storage.from(BUCKET).list();feed.innerHTML='';let list=data&&data.length?data:[{},{}];list.forEach(item=>{const d=document.createElement('div');d.className='clip';const v=document.createElement('video');v.loop=true;v.playsInline=true;if(data&&data.length){v.src=`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${item.name}`;}else{v.src='https://www.w3schools.com/html/mov_bbb.mp4';}v.addEventListener('click',()=>{v.paused?v.play():v.pause()});d.appendChild(v);feed.appendChild(d);});feed.addEventListener('scroll',()=>{document.querySelectorAll('.clip video').forEach(v=>{const r=v.getBoundingClientRect();if(r.top>=-150&&r.top<=150)v.play().catch(()=>{});else v.pause();});});}
+updateCounter();loadFeed();
 </script>
 </body>
 </html>
