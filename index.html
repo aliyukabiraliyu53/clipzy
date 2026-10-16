@@ -2,34 +2,71 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>CLIPZY FINAL</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CLIPZY - Full TikTok</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{background:#000;color:#fff;font-family:sans-serif;overflow:hidden}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;overflow:hidden}
 #feed{height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory}
 .clip{height:100vh;width:100vw;scroll-snap-align:start;position:relative;background:#111;display:flex;align-items:center;justify-content:center}
 .clip video{width:100%;height:100%;object-fit:cover}
-#top-bar{position:fixed;top:0;left:0;right:0;padding:12px;display:flex;justify-content:space-between;background:linear-gradient(to bottom,rgba(0,0,0,0.9),transparent);z-index:20}
-#counter{background:#8a2be2;padding:5px 12px;border-radius:20px;font-size:12px}
-.side-ui{position:fixed;right:12px;bottom:120px;display:flex;flex-direction:column;gap:18px;z-index:20}
-.side-ui button{background:rgba(255,255,255,0.2);border:none;width:52px;height:52px;border-radius:50%;font-size:24px}
+.overlay{position:absolute;bottom:0;left:0;right:60px;padding:12px 12px 20px;background:linear-gradient(transparent,rgba(0,0,0,0.8));}
+#top{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;justify-content:space-between;padding:12px;background:linear-gradient(to bottom,rgba(0,0,0,.8),transparent)}
+#counter{background:#8a2be2;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.right{position:absolute;right:8px;bottom:90px;display:flex;flex-direction:column;gap:18px;align-items:center;z-index:20}
+.r-btn{width:52px;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:#fff}
+.r-btn span:first-child{width:48px;height:48px;background:rgba(255,255,255,.2);backdrop-filter:blur(10px);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px}
+.r-btn span:last-child{font-size:11px;font-weight:600}
+.r-btn.liked span:first-child{background:#ff2d55}
+#postBtn{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:30;background:#fff;color:#000;border:none;padding:12px 22px;border-radius:30px;font-weight:800;display:flex;align-items:center;gap:6px}
+#commentBox{position:fixed;bottom:0;left:0;right:0;height:65vh;background:#121212;z-index:100;border-radius:20px 20px 0 0;transform:translateY(100%);transition:.3s;display:flex;flex-direction:column}
+#commentBox.open{transform:translateY(0)}
+#cList{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.cItem{font-size:13px}
+.cItem b{color:#8a2be2}
+#cInputWrap{display:flex;gap:8px;padding:10px;border-top:1px solid #333}
+#cInputWrap input{flex:1;background:#222;border:none;color:#fff;padding:10px 12px;border-radius:20px;outline:none}
 </style>
 </head>
 <body>
-<div id="top-bar"><div><b>CLIPZY</b></div><div id="counter">Free: 3/3</div></div>
+<div id="top"><div><b>CLIPZY</b> <small style="color:#0ff">Low Data</small></div><div id="counter">Free: 3/3</div></div>
 <div id="feed"></div>
-<div class="side-ui"><button onclick="handlePostClick()">📤</button><button>❤️</button></div>
+<button id="postBtn" onclick="handlePost()">📤 Saka Bidiyo</button>
+<div id="commentBox">
+<div style="padding:12px;text-align:center;border-bottom:1px solid #222"><b id="cTitle">Comments</b> <span onclick="closeC()" style="float:right">✖️</span></div>
+<div id="cList"></div>
+<div id="cInputWrap"><input id="cInput" placeholder="Rubuta comment..."><button onclick="sendComment()" style="background:#8a2be2;border:none;color:#fff;padding:8px 14px;border-radius:20px">Send</button></div>
+</div>
 <script>
-const SUPABASE_URL="https://gukuzlvwqaripnufvmlt.supabase.co";
-const SUPABASE_KEY="sb_publishable_x2ndSpPkpMsb3ajyBYBVrw_2y8K-84l";
+const URL="https://gukuzlvwqaripnufvmlt.supabase.co";
+const KEY="sb_publishable_x2ndSpPkpMsb3ajyBYBVrw_2y8K-84l";
 const BUCKET="Videos";
-const supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const supabaseClient=supabase.createClient(URL,KEY);
+let currentVideo=null;
+let commentsDB=JSON.parse(localStorage.getItem('clipzy_comments')||'{}');
+let likesDB=JSON.parse(localStorage.getItem('clipzy_likes')||'{}');
 function getPostData(){const t=new Date().toDateString();let d=JSON.parse(localStorage.getItem('clipzy_final'));if(!d||d.date!==t){d={date:t,count:0};localStorage.setItem('clipzy_final',JSON.stringify(d))}return d;}
-function updateCounter(){const d=getPostData();const r=3-d.count;document.getElementById('counter').innerText=r>0?`Free: ${r}/3`:`Free: 0/3 - N200`;}
-async function handlePostClick(){let data=getPostData();if(data.count>=3){if(!confirm('Ka cika 3 kyauta. Na 4 sai N200. Ka yarda?'))return;}const input=document.createElement('input');input.type='file';input.accept='video/*';input.onchange=async(e)=>{const file=e.target.files[0];if(!file)return;alert('Ana loda...');const fileName=Date.now()+'_'+file.name;const {error}=await supabaseClient.storage.from(BUCKET).upload(fileName,file);if(error){alert('Error: '+error.message);return;}data.count++;data.date=new Date().toDateString();localStorage.setItem('clipzy_final',JSON.stringify(data));updateCounter();alert('✅ An saka!');loadFeed();};input.click();}
-async function loadFeed(){const feed=document.getElementById('feed');const {data}=await supabaseClient.storage.from(BUCKET).list();feed.innerHTML='';let list=data&&data.length?data:[{},{}];list.forEach(item=>{const d=document.createElement('div');d.className='clip';const v=document.createElement('video');v.loop=true;v.playsInline=true;if(data&&data.length){v.src=`${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${item.name}`;}else{v.src='https://www.w3schools.com/html/mov_bbb.mp4';}v.addEventListener('click',()=>{v.paused?v.play():v.pause()});d.appendChild(v);feed.appendChild(d);});feed.addEventListener('scroll',()=>{document.querySelectorAll('.clip video').forEach(v=>{const r=v.getBoundingClientRect();if(r.top>=-150&&r.top<=150)v.play().catch(()=>{});else v.pause();});});}
+function updateCounter(){let d=getPostData();let r=3-d.count;document.getElementById('counter').innerText=r>0?`Free: ${r}/3`:`Free: 0/3 - N200`;}
+async function handlePost(){let data=getPostData();if(data.count>=3){if(!confirm('Ka cika 3 kyauta na yau. Na 4 sai N200. Ka yarda?'))return;}let input=document.createElement('input');input.type='file';input.accept='video/*';input.onchange=async e=>{let file=e.target.files[0];if(!file)return;let name=Date.now()+'_'+file.name.replace(/\s/g,'_');let {error}=await supabaseClient.storage.from(BUCKET).upload(name,file);if(error){alert(error.message);return;}data.count++;data.date=new Date().toDateString();localStorage.setItem('clipzy_final',JSON.stringify(data));updateCounter();loadFeed();};input.click();}
+function openC(videoName){currentVideo=videoName;document.getElementById('commentBox').classList.add('open');document.getElementById('cTitle').innerText=videoName;renderComments();}
+function closeC(){document.getElementById('commentBox').classList.remove('open');}
+function renderComments(){let list=document.getElementById('cList');let arr=commentsDB[currentVideo]||[];if(arr.length===0){list.innerHTML='<small style="color:#777">Babu comment tukuna. Ka fara!</small>';return;}list.innerHTML=arr.map(c=>`<div class=cItem><b>@user:</b> ${c}</div>`).join('');}
+function sendComment(){let v=document.getElementById('cInput').value.trim();if(!v)return;if(!commentsDB[currentVideo])commentsDB[currentVideo]=[];commentsDB[currentVideo].push(v);localStorage.setItem('clipzy_comments',JSON.stringify(commentsDB));document.getElementById('cInput').value='';renderComments();}
+function toggleLike(btn, videoName){let liked=likesDB[videoName];if(liked){delete likesDB[videoName];btn.classList.remove('liked');btn.querySelector('.like-count').innerText='0';}else{likesDB[videoName]=1;btn.classList.add('liked');btn.querySelector('.like-count').innerText='1';}localStorage.setItem('clipzy_likes',JSON.stringify(likesDB));}
+function shareVideo(videoName){let link=`${URL}/storage/v1/object/public/${BUCKET}/${videoName}`;if(navigator.share){navigator.share({title:'Clipzy',url:link});}else{navigator.clipboard.writeText(link);alert('An kwafi link: '+link);}}
+async function loadFeed(){let feed=document.getElementById('feed');feed.innerHTML='Ana loda...';let {data,error}=await supabaseClient.storage.from(BUCKET).list();feed.innerHTML='';let videos=[];if(!data||data.length===0||error){videos=[{name:'demo.mp4',url:'https://www.w3schools.com/html/mov_bbb.mp4',isDemo:true}];}else{videos=data.reverse().map(f=>({name:f.name,url:`${URL}/storage/v1/object/public/${BUCKET}/${f.name}`,isDemo:false}));}
+videos.forEach(vd=>{let clip=document.createElement('div');clip.className='clip';let video=document.createElement('video');video.src=vd.url;video.loop=true;video.playsInline=true;video.preload='metadata';video.addEventListener('click',()=>video.paused?video.play():video.pause());clip.appendChild(video);
+let right=document.createElement('div');right.className='right';
+let likeBtn=document.createElement('button');likeBtn.className='r-btn'+(likesDB[vd.name]?' liked':'');likeBtn.innerHTML=`<span>❤️</span><span class=like-count>${likesDB[vd.name]?1:0}</span>`;likeBtn.onclick=()=>toggleLike(likeBtn,vd.name);
+let commentBtn=document.createElement('button');commentBtn.className='r-btn';let cCount=(commentsDB[vd.name]||[]).length;commentBtn.innerHTML=`<span>💬</span><span>${cCount}</span>`;commentBtn.onclick=()=>openC(vd.name);
+let shareBtn=document.createElement('button');shareBtn.className='r-btn';shareBtn.innerHTML=`<span>↗️</span><span>Share</span>`;shareBtn.onclick=()=>shareVideo(vd.name);
+right.append(likeBtn,commentBtn,shareBtn);clip.appendChild(right);
+let over=document.createElement('div');over.className='overlay';over.innerHTML=`<b>@${vd.name.slice(0,8)}</b><br><small>${vd.isDemo?'Wannan demo ne. Ka saka naka!':'Low data mode • Clipzy'}</small>`;clip.appendChild(over);
+feed.appendChild(clip);});
+let first=document.querySelector('.clip video');if(first)first.play().catch(()=>{});
+feed.addEventListener('scroll',()=>{document.querySelectorAll('.clip video').forEach(v=>{let r=v.getBoundingClientRect();if(r.top>=-150&&r.top<=150){if(v.paused)v.play().catch(()=>{});}else v.pause();});},{passive:true});}
 updateCounter();loadFeed();
 </script>
 </body>
-</html>
+  </html>
