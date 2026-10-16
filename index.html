@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLIPZY - Duniya</title>
+<style>
+body{font-family:sans-serif;background:#000;color:#fff;text-align:center;margin:0}
+header{padding:15px;background:#111}
+video{width:100%;max-width:400px;border-radius:15px;margin:10px 0}
+.btn{background:#ff0050;color:#fff;padding:12px 25px;border:none;border-radius:25px;font-weight:bold}
+</style>
+</head>
+<body>
+<header><h2>CLIPZY 🌍</h2><p>3 Kyauta, na 4 N200 | Low Data Mode</p></header>
+<div id="app">
+<video id="player" controls autoplay loop></video>
+<div>
+<button class="btn" onclick="nextVideo()">Next Clip ⏭️</button>
+<button class="btn" style="background:#222" onclick="document.getElementById('file').click()">Upload 📤</button>
+<input type="file" id="file" hidden accept="video/*" onchange="uploadVideo(event)">
+</div>
+<p id="count">Free: 3/3 remaining</p>
+<p id="status"></p>
+</div>
+<script>
+let freeCount = 3;
+const videos = [];
+function nextVideo(){
+ if(freeCount<=0){
+   document.getElementById('status').innerHTML="Free ya kare! Biya N200 don ci gaba - <button class='btn' onclick='pay()'>Biya N200</button>";
+   return;
+ }
+ freeCount--;
+ document.getElementById('count').innerText=`Free: ${freeCount}/3 remaining`;
+ if(videos.length>0){
+  const v=videos[Math.floor(Math.random()*videos.length)];
+  document.getElementById('player').src=v;
+ }
+}
+function uploadVideo(e){
+ const file=e.target.files[0];
+ if(file){
+  const url=URL.createObjectURL(file);
+  videos.push(url);
+  document.getElementById('player').src=url;
+  document.getElementById('status').innerText="Clip uploaded! 🎉";
+ }
+}
+function pay(){
+ window.open('https://paystack.com/pay/clipzy200','_blank');
+ freeCount=3;
+ document.getElementById('count').innerText=`Free: ${freeCount}/3 remaining`;
+ document.getElementById('status').innerText="Biya ya yi! Ci gaba.";
+}
+</script>
+</body>
+</html>
